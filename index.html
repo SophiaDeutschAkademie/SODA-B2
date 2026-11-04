@@ -60,8 +60,18 @@ input.bad{border-color:var(--red);animation:shake .3s}
 #msg{min-height:26px;margin-top:12px;font-size:14px;color:var(--ink-3)}#msg.err{color:var(--red)}
 .back{display:inline-block;margin-top:22px;font-size:14.5px}
 #reader{position:fixed;inset:0;z-index:1000;background:var(--ivory);display:none}
-#reader.on{display:block}
-#reader iframe{width:100%;height:100%;border:0;display:block}
+#reader.on{display:flex;flex-direction:column}
+#reader iframe{width:100%;flex:1 1 auto;min-height:0;border:0;display:block}
+.fsbar{flex:none;display:flex;justify-content:flex-end;align-items:center;gap:10px;min-height:42px;padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));background:var(--ivory);border-bottom:1px solid var(--line);font-size:12.5px;line-height:1;color:var(--ink-3)}
+.fsbar .fsl{font-weight:600;letter-spacing:.02em}
+.fsg{display:flex;align-items:stretch;height:30px;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+.fsg button{border:0;background:none;padding:0;min-width:36px;display:flex;align-items:center;justify-content:center;color:var(--ink);font-weight:600;transition:background-color .15s}
+.fsg button+button{border-left:1px solid var(--line)}
+.fsg button:hover:not([disabled]){background:var(--mist)}
+.fsg button[disabled]{color:#B9BDC7;cursor:default}
+.fsg .fsm{font-size:12px}.fsg .fsp{font-size:17px}
+.fsg .fsv{min-width:52px;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.fsg button:focus-visible{outline:2px solid var(--ochre);outline-offset:-2px;border-radius:0}
 @media (max-width:560px){.page{padding:22px 22px 24px}.main{padding:40px 0 28px}.toc button{grid-template-columns:34px minmax(0,1fr) auto}}
 @keyframes pgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 #cover,#list,#lock{animation:pgIn .35s ease both}
@@ -255,11 +265,46 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     return html;
   }
 
+  var FS_STEPS = [0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5], FS_KEY = 'soda-kurs-fs';
+  var FS_INJECT = '<script>' + '(function(){\nif(window.__sodaFS)return;\nvar d=document,root=d.documentElement,st=null,qt=null,rules={},on=false,mo=null,HTML=\'http://www.w3.org/1999/xhtml\';\nvar SKIP={SCRIPT:1,STYLE:1,LINK:1,META:1,TITLE:1,HEAD:1,HTML:1,BR:1,NOSCRIPT:1,TEMPLATE:1,WBR:1};\nfunction sheets(){\n  if(!st||!st.isConnected){st=d.createElement(\'style\');st.setAttribute(\'data-soda-fs\',\'\');(d.head||root).appendChild(st);rules={};}\n  if(!qt||!qt.isConnected){qt=d.createElement(\'style\');qt.setAttribute(\'data-soda-fs\',\'q\');qt.textContent=\'*,*::before,*::after{transition:none!important}\';(d.head||root).appendChild(qt);qt.disabled=true;}\n}\nfunction quiet(fn){qt.disabled=false;try{fn();}finally{void root.offsetHeight;qt.disabled=true;}}\nfunction skip(el){return el.namespaceURI!==HTML||SKIP[el.tagName]||el.hasAttribute(\'data-soda-fs\');}\nfunction addRule(k){\n  var a=k.split(\'_\'),css=\'[data-sfz="\'+k+\'"]{font-size:calc(\'+a[0]+\'px * var(--sfz,1))!important\'+(a[1]===\'n\'?\'\':\';line-height:\'+a[1]+\'!important\')+\'}\';\n  try{st.sheet.insertRule(css,st.sheet.cssRules.length);}catch(e){}\n  rules[k]=1;\n}\nfunction measure(list){\n  var out=[],i,el,cs,fs,lh,r,was=st.disabled;\n  st.disabled=true;\n  for(i=0;i<list.length;i++){\n    el=list[i];if(!el||el.nodeType!==1||!el.isConnected||skip(el))continue;\n    cs=getComputedStyle(el);fs=parseFloat(cs.fontSize);if(!(fs>0))continue;\n    lh=parseFloat(cs.lineHeight);r=(cs.lineHeight===\'normal\'||!(lh>0))?\'n\':String(Math.round(lh/fs*100)/100);\n    out.push(el,(Math.round(fs*4)/4)+\'_\'+r);\n  }\n  st.disabled=was;\n  for(i=0;i<out.length;i+=2){if(!rules[out[i+1]])addRule(out[i+1]);if(out[i].getAttribute(\'data-sfz\')!==out[i+1])out[i].setAttribute(\'data-sfz\',out[i+1]);}\n}\nfunction all(el){var a=[el],c=el.getElementsByTagName(\'*\');for(var i=0;i<c.length;i++)a.push(c[i]);return a;}\nfunction onMut(recs){\n  if(!on)return;var list=[],i,j,n,r;\n  for(i=0;i<recs.length;i++){r=recs[i];\n    for(j=0;j<r.addedNodes.length;j++){n=r.addedNodes[j];if(n.nodeType===1)list=list.concat(all(n));}}\n  if(list.length)quiet(function(){measure(list);});\n}\nfunction apply(s){\n  s=+s||1;sheets();\n  quiet(function(){\n    root.style.setProperty(\'--sfz\',String(s));\n    if(s===1){st.disabled=true;on=false;if(mo)mo.disconnect();return;}\n    if(!on&&d.body){measure(all(d.body));on=true;if(!mo)mo=new MutationObserver(onMut);mo.observe(d.body,{childList:true,subtree:true});}\n    st.disabled=false;\n  });\n}\nwindow.__sodaFS=apply;\n})();' + '<\/script>';
+  function fsGet() { var v = 1; try { v = parseFloat(localStorage.getItem(FS_KEY)); } catch (e) {} return FS_STEPS.indexOf(v) >= 0 ? v : 1; }
+  function fsSet(v) { try { localStorage.setItem(FS_KEY, String(v)); } catch (e) {} }
+  function injectFS(html) {
+    var i = html.lastIndexOf('</body>');
+    return i < 0 ? html + FS_INJECT : html.slice(0, i) + FS_INJECT + html.slice(i);
+  }
+  function fsBar(f) {
+    var bar = document.createElement('div');
+    bar.className = 'fsbar'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', '글씨 크기');
+    bar.innerHTML = '<span class="fsl" aria-hidden="true">글씨 크기</span><div class="fsg">'
+      + '<button type="button" class="fsm" aria-label="글씨 작게">가</button>'
+      + '<button type="button" class="fsv" aria-label="기본 크기로 되돌리기"></button>'
+      + '<button type="button" class="fsp" aria-label="글씨 크게">가</button></div>';
+    var bm = bar.querySelector('.fsm'), bv = bar.querySelector('.fsv'), bp = bar.querySelector('.fsp');
+    function push() { try { if (f.contentWindow && f.contentWindow.__sodaFS) f.contentWindow.__sodaFS(fsGet()); } catch (e) {} }
+    function paint() {
+      var v = fsGet(), k = FS_STEPS.indexOf(v);
+      bv.textContent = Math.round(v * 100) + '%';
+      bm.disabled = k <= 0; bp.disabled = k >= FS_STEPS.length - 1;
+    }
+    function step(dlt) {
+      var k = FS_STEPS.indexOf(fsGet()) + dlt;
+      if (k < 0 || k >= FS_STEPS.length) return;
+      fsSet(FS_STEPS[k]); paint(); push();
+    }
+    bm.addEventListener('click', function () { step(-1); });
+    bp.addEventListener('click', function () { step(1); });
+    bv.addEventListener('click', function () { fsSet(1); paint(); push(); });
+    f.addEventListener('load', push);
+    paint();
+    return bar;
+  }
+
   function openReader(html) {
     closeReader(true);
     var f = document.createElement('iframe');
-    f.srcdoc = html; f.title = '챕터 본문'; f.setAttribute('allow', 'autoplay');
-    $('reader').appendChild(f); $('reader').className = 'on';
+    f.srcdoc = injectFS(html); f.title = '챕터 본문'; f.setAttribute('allow', 'autoplay');
+    $('reader').appendChild(fsBar(f)); $('reader').appendChild(f); $('reader').className = 'on';
     document.body.style.overflow = 'hidden';
     history.pushState({ read: 1 }, '', '#read');
   }
@@ -315,7 +360,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     tryOpen(cur, v);
   });
   window.addEventListener('message', function (ev) {
-    var f = $('reader').firstChild;
+    var f = $('reader').querySelector('iframe');
     if (f && ev.source === f.contentWindow && ev.data === 'soda-list') { closeReader(false); try { history.replaceState(null, '', '#list'); } catch (e) {} }
   });
   window.addEventListener('popstate', function () {
