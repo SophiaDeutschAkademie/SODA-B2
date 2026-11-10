@@ -64,6 +64,12 @@ input.bad{border-color:var(--red);animation:shake .3s}
 #reader iframe{width:100%;flex:1 1 auto;min-height:0;border:0;display:block}
 .fsbar{flex:none;display:flex;justify-content:flex-end;align-items:center;gap:10px;min-height:42px;padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));background:var(--ivory);border-bottom:1px solid var(--line);font-size:12.5px;line-height:1;color:var(--ink-3)}
 .fsbar .fsl{font-weight:600;letter-spacing:.02em}
+.fsprint{display:none;align-items:center;gap:6px;height:30px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-weight:600;font-size:13px;line-height:1;white-space:nowrap;transition:background-color .15s}
+.fsprint svg{flex:none}
+.fsprint:hover{background:var(--mist)}
+.fsprint:focus-visible{outline:2px solid var(--ochre);outline-offset:2px}
+.fsbar[data-view="exp"] .fsprint,.fsbar[data-view="arb"] .fsprint{display:inline-flex}
+@media (max-width:640px){.fsprint{height:36px;padding:0 13px;font-size:13.5px}}
 .fsg{display:flex;align-items:stretch;height:30px;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
 .fsg button{border:0;background:none;padding:0;min-width:36px;display:flex;align-items:center;justify-content:center;color:var(--ink);font-weight:600;transition:background-color .15s}
 .fsg button+button{border-left:1px solid var(--line)}
@@ -273,18 +279,36 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   var FS_INJECT = '<script>' + '(function(){\nif(window.__sodaFS)return;\nvar d=document,root=d.documentElement,st=null,qt=null,rules={},on=false,mo=null,HTML=\'http://www.w3.org/1999/xhtml\';\nvar SKIP={SCRIPT:1,STYLE:1,LINK:1,META:1,TITLE:1,HEAD:1,HTML:1,BR:1,NOSCRIPT:1,TEMPLATE:1,WBR:1};\nfunction sheets(){\n  if(!st||!st.isConnected){st=d.createElement(\'style\');st.setAttribute(\'data-soda-fs\',\'\');(d.head||root).appendChild(st);rules={};}\n  if(!qt||!qt.isConnected){qt=d.createElement(\'style\');qt.setAttribute(\'data-soda-fs\',\'q\');qt.textContent=\'*,*::before,*::after{transition:none!important}\';(d.head||root).appendChild(qt);qt.disabled=true;}\n}\nfunction quiet(fn){qt.disabled=false;try{fn();}finally{void root.offsetHeight;qt.disabled=true;}}\nfunction skip(el){return el.namespaceURI!==HTML||SKIP[el.tagName]||el.hasAttribute(\'data-soda-fs\');}\nfunction addRule(k){\n  var a=k.split(\'_\'),css=\'[data-sfz="\'+k+\'"]{font-size:calc(\'+a[0]+\'px * var(--sfz,1))!important\'+(a[1]===\'n\'?\'\':\';line-height:\'+a[1]+\'!important\')+\'}\';\n  try{st.sheet.insertRule(css,st.sheet.cssRules.length);}catch(e){}\n  rules[k]=1;\n}\nfunction measure(list){\n  var out=[],i,el,cs,fs,lh,r,was=st.disabled;\n  st.disabled=true;\n  for(i=0;i<list.length;i++){\n    el=list[i];if(!el||el.nodeType!==1||!el.isConnected||skip(el))continue;\n    cs=getComputedStyle(el);fs=parseFloat(cs.fontSize);if(!(fs>0))continue;\n    lh=parseFloat(cs.lineHeight);r=(cs.lineHeight===\'normal\'||!(lh>0))?\'n\':String(Math.round(lh/fs*100)/100);\n    out.push(el,(Math.round(fs*4)/4)+\'_\'+r);\n  }\n  st.disabled=was;\n  for(i=0;i<out.length;i+=2){if(!rules[out[i+1]])addRule(out[i+1]);if(out[i].getAttribute(\'data-sfz\')!==out[i+1])out[i].setAttribute(\'data-sfz\',out[i+1]);}\n}\nfunction all(el){var a=[el],c=el.getElementsByTagName(\'*\');for(var i=0;i<c.length;i++)a.push(c[i]);return a;}\nfunction onMut(recs){\n  if(!on)return;var list=[],i,j,n,r;\n  for(i=0;i<recs.length;i++){r=recs[i];\n    for(j=0;j<r.addedNodes.length;j++){n=r.addedNodes[j];if(n.nodeType===1)list=list.concat(all(n));}}\n  if(list.length)quiet(function(){measure(list);});\n}\nfunction apply(s){\n  s=+s||1;sheets();\n  quiet(function(){\n    root.style.setProperty(\'--sfz\',String(s));\n    if(s===1){st.disabled=true;on=false;if(mo)mo.disconnect();return;}\n    if(!on&&d.body){measure(all(d.body));on=true;if(!mo)mo=new MutationObserver(onMut);mo.observe(d.body,{childList:true,subtree:true});}\n    st.disabled=false;\n  });\n}\nwindow.__sodaFS=apply;\n})();' + '<\/script>';
   function fsGet() { var v = 1; try { v = parseFloat(localStorage.getItem(FS_KEY)); } catch (e) {} return FS_STEPS.indexOf(v) >= 0 ? v : 1; }
   function fsSet(v) { try { localStorage.setItem(FS_KEY, String(v)); } catch (e) {} }
+  /* 인쇄: Explikation 은 삽화를 빼고 제목과 본문만 인쇄한다. Arbeitsblatt(적는 줄 포함 A4 배치)는 건드리지 않는다. */
+  var PRINT_CSS = '@media print{#v-exp .comic,#v-exp figure,#v-exp img,#v-exp picture,#v-exp .foot{display:none!important}#v-exp .core>h2,#v-exp .sec-h,#v-exp .sum-h{break-after:avoid}#v-exp .core ol{display:block}#v-exp .core li{break-inside:avoid;margin-bottom:6px}}';
+  var PRINT_INJECT = '<style data-soda-print>' + PRINT_CSS + '</style><script>(function(){var r=document.documentElement,last=null;'
+    + 'function cur(){var p=r.getAttribute("data-page")||"";if(p!=="view")return p;var o=document.querySelector(".view.on");return o?o.id.replace(/^v-/,""):"";}'
+    + 'function send(){var v=cur();if(v===last)return;last=v;try{parent.postMessage({soda:"view",view:v},"*");}catch(e){}}'
+    + 'new MutationObserver(send).observe(r,{attributes:true,attributeFilter:["data-page"]});'
+    + 'document.addEventListener("soda:view",send);addEventListener("load",send);send();})();' + '<\/script>';
+  function viewOf(w) {
+    var d = w.document, r = d.documentElement, p = r.getAttribute('data-page') || '';
+    if (p !== 'view') return p;
+    var o = d.querySelector('.view.on');
+    return o ? o.id.replace(/^v-/, '') : '';
+  }
   function injectFS(html) {
+    var h = html.indexOf('</head>');
+    if (h >= 0) html = html.slice(0, h) + PRINT_INJECT + html.slice(h);
     var i = html.lastIndexOf('</body>');
     return i < 0 ? html + FS_INJECT : html.slice(0, i) + FS_INJECT + html.slice(i);
   }
   function fsBar(f) {
     var bar = document.createElement('div');
     bar.className = 'fsbar'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', '글씨 크기');
-    bar.innerHTML = '<span class="fsl" aria-hidden="true">글씨 크기</span><div class="fsg">'
+    bar.innerHTML = '<button type="button" class="fsprint" title="인쇄 / PDF 저장" aria-label="인쇄하기"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5.5" rx="1.2"/><path d="M4.5 9.5h7v4h-7z"/></svg><span>인쇄</span></button>'
+      + '<span class="fsl" aria-hidden="true">글씨 크기</span><div class="fsg">'
       + '<button type="button" class="fsm" aria-label="글씨 작게">가</button>'
       + '<button type="button" class="fsv" aria-label="기본 크기로 되돌리기"></button>'
       + '<button type="button" class="fsp" aria-label="글씨 크게">가</button></div>';
-    var bm = bar.querySelector('.fsm'), bv = bar.querySelector('.fsv'), bp = bar.querySelector('.fsp');
+    var bm = bar.querySelector('.fsm'), bv = bar.querySelector('.fsv'), bp = bar.querySelector('.fsp'), bpr = bar.querySelector('.fsprint');
+    bpr.addEventListener('click', function () { try { var w = f.contentWindow; w.focus(); w.print(); } catch (e) {} });
+    f.addEventListener('load', function () { try { bar.setAttribute('data-view', viewOf(f.contentWindow)); } catch (e) {} });
     function push() { try { if (f.contentWindow && f.contentWindow.__sodaFS) f.contentWindow.__sodaFS(fsGet()); } catch (e) {} }
     function paint() {
       var v = fsGet(), k = FS_STEPS.indexOf(v);
@@ -365,6 +389,10 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   });
   window.addEventListener('message', function (ev) {
     var f = $('reader').querySelector('iframe');
+    if (f && ev.source === f.contentWindow && ev.data && ev.data.soda === 'view') {
+      var pb = $('reader').querySelector('.fsbar'); if (pb) pb.setAttribute('data-view', ev.data.view || '');
+      return;
+    }
     if (f && ev.source === f.contentWindow && ev.data === 'soda-list') { closeReader(false); try { history.replaceState(null, '', '#list'); } catch (e) {} }
   });
   window.addEventListener('popstate', function () {
