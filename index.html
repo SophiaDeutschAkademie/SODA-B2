@@ -281,6 +281,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   function fsSet(v) { try { localStorage.setItem(FS_KEY, String(v)); } catch (e) {} }
   /* 인쇄: Explikation 은 제목(독일어 부제 포함)과 독일어 원문만 인쇄한다. 화면 글씨 크기 설정과 상관없이 본문 12pt 로 고정한다.
      Arbeitsblatt 는 위쪽 바의 인쇄 버튼만 쓰도록 학습지 안의 「인쇄 / PDF」 버튼을 숨긴다. A4 배치와 적는 줄은 그대로 둔다. */
+  /* Explikation 왼쪽 학습 도구(레일·모바일 메뉴 버튼)를 모든 화면에서 숨긴다 */
+  var TOOLS_CSS = '.rail,.scrim,[data-action="menu"]{display:none!important}.ex-layout{display:block!important}';
   var PRINT_CSS = '#v-arb #abPrint{display:none!important}@media print{#v-exp #col>:not(#hero):not(#sec-read),#v-exp #hero>:not(h1):not(.sub),#v-exp #sec-read>:not(.sheet),#v-exp #sec-read .sheet>:not(.para){display:none!important}#v-exp #hero{padding:0 0 10pt!important;margin:0 0 14pt!important;border:0!important}#v-exp #hero h1{font-size:16pt!important;line-height:1.3!important;margin:0!important}#v-exp #hero .sub{font-size:12pt!important;line-height:1.5!important;margin:4pt 0 0!important}#v-exp #sec-read,#v-exp #sec-read .sheet{margin:0!important;padding:0!important;border:0!important;background:none!important}#v-exp #sec-read .para{font-size:12pt!important;line-height:1.8!important;margin:0 0 10pt!important;text-align:justify}#v-exp #sec-read .para .rs{font-size:12pt!important;line-height:1.8!important;background:none!important;text-decoration:none!important}#v-exp #sec-read .para .rs a{font-size:7pt!important;line-height:0!important}}';
   var PRINT_INJECT = '<style data-soda-print>' + PRINT_CSS + '</style><script>(function(){var r=document.documentElement,last=null;'
     + 'function cur(){var p=r.getAttribute("data-page")||"";if(p!=="view")return p;var o=document.querySelector(".view.on");return o?o.id.replace(/^v-/,""):"";}'
@@ -295,7 +297,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   }
   function injectFS(html) {
     var h = html.indexOf('</head>');
-    if (h >= 0) html = html.slice(0, h) + PRINT_INJECT + html.slice(h);
+    if (h >= 0) html = html.slice(0, h) + '<style data-soda-tools>' + TOOLS_CSS + '</style>' + PRINT_INJECT + html.slice(h);
     var i = html.lastIndexOf('</body>');
     return i < 0 ? html + FS_INJECT : html.slice(0, i) + FS_INJECT + html.slice(i);
   }
