@@ -284,7 +284,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   /* 인쇄: Explikation 은 제목(독일어 부제 포함)과 독일어 원문만 인쇄한다. 화면 글씨 크기 설정과 상관없이 본문 12pt 로 고정한다.
      Arbeitsblatt 는 위쪽 바의 인쇄 버튼만 쓰도록 학습지 안의 「인쇄 / PDF」 버튼을 숨긴다. A4 배치와 적는 줄은 그대로 둔다. */
   /* 스크롤을 내리면 상단 메뉴를 숨기고, 올리면 다시 보인다 (챕터 안에서 실행).
-     Arbeitsblatt 에서는 숨기지 않는다. 글씨 크기 막대, 파트 탭, 학습지 도구 막대가 화면 맨 위에 그대로 고정된다. */
+     Arbeitsblatt 에서는 상단 메뉴가 페이지 맨 위에 고정되어 스크롤하면 내용과 함께 위로 사라지고, 올려도 따라오지 않는다.
+     맨 위로 돌아가야 다시 보인다. */
   function chapterNav() {
     var r = document.documentElement, last = window.pageYOffset || 0, dir = 0, anchor = last, hidden = false, lock = 0, tick = false;
     function set(h) {
@@ -293,15 +294,20 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
       r.classList.toggle('soda-nav-hidden', h);
       try { parent.postMessage({ soda: 'bar', hidden: h }, '*'); } catch (e) {}
     }
-    function pinned() {
+    function flowMode() {
       var a = document.getElementById('v-arb');
       return !!a && a.classList.contains('on') && r.getAttribute('data-page') === 'view';
     }
-    function sync() { if (pinned()) set(false); }
+    function sync() {
+      var on = flowMode();
+      r.classList.toggle('soda-arb-flow', on);
+      if (on) set((window.pageYOffset || 0) > 8);
+    }
     function run() {
       tick = false;
       var y = window.pageYOffset || 0;
-      if (pinned()) { set(false); dir = 0; last = y; return; }
+      if (flowMode()) { r.classList.add('soda-arb-flow'); set(y > 8); dir = 0; last = y; return; }
+      r.classList.remove('soda-arb-flow');
       if (Date.now() < lock) { last = y; return; }
       if (y <= 8) { set(false); dir = 0; last = y; return; }
       if (y > last) {
@@ -314,8 +320,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
       last = y;
     }
     window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(run); } }, { passive: true });
-    window.addEventListener('hashchange', function () { set(false); last = window.pageYOffset || 0; });
-    /* 다른 파트에서 메뉴가 숨겨진 채 Arbeitsblatt 로 넘어오면 바로 다시 보이게 한다 */
+    window.addEventListener('hashchange', function () { if (flowMode()) sync(); else set(false); last = window.pageYOffset || 0; });
+    /* 파트를 바꿀 때 Arbeitsblatt 방식과 다른 파트 방식을 바로 맞춘다 */
     function watch() {
       var a = document.getElementById('v-arb');
       if (a) new MutationObserver(sync).observe(a, { attributes: true, attributeFilter: ['class'] });
@@ -394,7 +400,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     }
     if (document.readyState === 'complete') init(); else window.addEventListener('load', init);
   }
-  var NAV_XL_CSS = '.topnav{transition:transform .25s ease}' + '#v-exp .ex-bar,#v-arb .ab-tools,.section-nav{transition:top .25s ease}' + 'html.soda-nav-hidden #v-exp .ex-bar,html.soda-nav-hidden #v-arb .ab-tools,html.soda-nav-hidden .section-nav{top:0!important}' + 'html.soda-nav-hidden .topnav{transform:translateY(-100%)}' + 'html #v-arb .struktur-page .exercise-list > li > input.answer-line.soda-xl.xl-g{grid-column:1 / -1!important;grid-row:auto!important;height:8.2mm!important;min-height:0!important;margin:0 0 0 30px!important;width:auto!important;align-self:auto!important;justify-self:stretch!important;border-bottom:1px solid #D4CDBB!important}' + '@media print{#v-arb .soda-xl.xl-empty{display:none!important}}';
+  var NAV_XL_CSS = '.topnav{transition:transform .25s ease}' + '#v-exp .ex-bar,#v-arb .ab-tools,.section-nav{transition:top .25s ease}' + 'html.soda-nav-hidden #v-exp .ex-bar,html.soda-nav-hidden #v-arb .ab-tools,html.soda-nav-hidden .section-nav{top:0!important}' + 'html.soda-nav-hidden .topnav{transform:translateY(-100%)}' + 'html.soda-arb-flow .topnav,html.soda-arb-flow #v-arb .ab-tools{position:relative!important;top:auto!important;transform:none!important;transition:none!important}' + 'html #v-arb .struktur-page .exercise-list > li > input.answer-line.soda-xl.xl-g{grid-column:1 / -1!important;grid-row:auto!important;height:8.2mm!important;min-height:0!important;margin:0 0 0 30px!important;width:auto!important;align-self:auto!important;justify-self:stretch!important;border-bottom:1px solid #D4CDBB!important}' + '@media print{#v-arb .soda-xl.xl-empty{display:none!important}}';
   /* Explikation 왼쪽 학습 도구(레일·모바일 메뉴 버튼)를 모든 화면에서 숨긴다 */
   var TOOLS_CSS = '.rail,.scrim,[data-action="menu"]{display:none!important}.ex-layout{display:block!important}' + NAV_XL_CSS;
   var PRINT_CSS = '#v-arb #abPrint{display:none!important}@media print{#v-exp #col>:not(#hero):not(#sec-read),#v-exp #hero>:not(h1):not(.sub),#v-exp #sec-read>:not(.sheet),#v-exp #sec-read .sheet>:not(.para){display:none!important}#v-exp #hero{padding:0 0 10pt!important;margin:0 0 14pt!important;border:0!important}#v-exp #hero h1{font-size:16pt!important;line-height:1.3!important;margin:0!important}#v-exp #hero .sub{font-size:12pt!important;line-height:1.5!important;margin:4pt 0 0!important}#v-exp #sec-read,#v-exp #sec-read .sheet{margin:0!important;padding:0!important;border:0!important;background:none!important}#v-exp #sec-read .para{font-size:12pt!important;line-height:1.8!important;margin:0 0 10pt!important;text-align:justify}#v-exp #sec-read .para .rs{font-size:12pt!important;line-height:1.8!important;background:none!important;text-decoration:none!important}#v-exp #sec-read .para .rs a{font-size:7pt!important;line-height:0!important}}';
