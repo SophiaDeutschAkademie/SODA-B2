@@ -283,7 +283,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   function fsSet(v) { try { localStorage.setItem(FS_KEY, String(v)); } catch (e) {} }
   /* 인쇄: Explikation 은 제목(독일어 부제 포함)과 독일어 원문만 인쇄한다. 화면 글씨 크기 설정과 상관없이 본문 12pt 로 고정한다.
      Arbeitsblatt 는 위쪽 바의 인쇄 버튼만 쓰도록 학습지 안의 「인쇄 / PDF」 버튼을 숨긴다. A4 배치와 적는 줄은 그대로 둔다. */
-  /* 스크롤을 내리면 상단 메뉴를 숨기고, 올리면 다시 보인다 (챕터 안에서 실행) */
+  /* 스크롤을 내리면 상단 메뉴를 숨기고, 올리면 다시 보인다 (챕터 안에서 실행).
+     Arbeitsblatt 에서는 숨기지 않는다. 글씨 크기 막대, 파트 탭, 학습지 도구 막대가 화면 맨 위에 그대로 고정된다. */
   function chapterNav() {
     var r = document.documentElement, last = window.pageYOffset || 0, dir = 0, anchor = last, hidden = false, lock = 0, tick = false;
     function set(h) {
@@ -292,9 +293,15 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
       r.classList.toggle('soda-nav-hidden', h);
       try { parent.postMessage({ soda: 'bar', hidden: h }, '*'); } catch (e) {}
     }
+    function pinned() {
+      var a = document.getElementById('v-arb');
+      return !!a && a.classList.contains('on') && r.getAttribute('data-page') === 'view';
+    }
+    function sync() { if (pinned()) set(false); }
     function run() {
       tick = false;
       var y = window.pageYOffset || 0;
+      if (pinned()) { set(false); dir = 0; last = y; return; }
       if (Date.now() < lock) { last = y; return; }
       if (y <= 8) { set(false); dir = 0; last = y; return; }
       if (y > last) {
@@ -308,6 +315,14 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     }
     window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(run); } }, { passive: true });
     window.addEventListener('hashchange', function () { set(false); last = window.pageYOffset || 0; });
+    /* 다른 파트에서 메뉴가 숨겨진 채 Arbeitsblatt 로 넘어오면 바로 다시 보이게 한다 */
+    function watch() {
+      var a = document.getElementById('v-arb');
+      if (a) new MutationObserver(sync).observe(a, { attributes: true, attributeFilter: ['class'] });
+      sync();
+    }
+    new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ['data-page'] });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
   }
   /* Arbeitsblatt: 작성 칸의 마지막 줄에 글을 쓰면 바로 아래에 빈 줄을 한 칸 더 만든다 (챕터 안에서 실행) */
   function sodaXL() {
@@ -433,6 +448,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
 
   function openReader(html) {
     closeReader(true);
+    $('reader').removeAttribute('data-bar');
     var f = document.createElement('iframe');
     f.srcdoc = injectFS(html); f.title = '챕터 본문'; f.setAttribute('allow', 'autoplay');
     $('reader').appendChild(fsBar(f)); $('reader').appendChild(f); $('reader').className = 'on';
@@ -442,7 +458,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
   function closeReader(silent) {
     var r = $('reader');
     if (r.className !== 'on') return;
-    r.className = ''; r.textContent = '';
+    r.className = ''; r.textContent = ''; r.removeAttribute('data-bar');
     if (frameURL) { URL.revokeObjectURL(frameURL); frameURL = null; }
     document.body.style.overflow = '';
     if (!silent) show('list');
