@@ -330,7 +330,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     new MutationObserver(sync).observe(r, { attributes: true, attributeFilter: ['data-page'] });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
   }
-  /* Arbeitsblatt: 작성 칸의 마지막 줄에 글을 쓰면 바로 아래에 빈 줄을 한 칸 더 만든다 (챕터 안에서 실행) */
+  /* Arbeitsblatt: 작성 칸에 쓴 글이 칸 너비를 넘으면 넘친 부분을 아래 줄로 옮겨 이어 쓰게 한다.
+     마지막 줄에서 넘치면 그 아래에 빈 줄을 한 칸 만든다 (챕터 안에서 실행) */
   function sodaXL() {
     if (window.__sodaXL) return; window.__sodaXL = 1;
     function init() {
@@ -338,7 +339,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
       var SEL = 'input.answer-line, input.write-line';
       var ey = A.querySelector('.tp-eyebrow'), hh = A.querySelector('.tp-h');
       var KEY = 'soda-xl|' + (ey ? ey.textContent : '') + '|' + (hh ? hh.textContent : '').replace(/\s+/g, ' ').trim();
-      var parents = [], badge = document.getElementById('saveBadge'), bt;
+      var parents = [], badge = document.getElementById('saveBadge'), bt, composing = false;
       Array.prototype.forEach.call(A.querySelectorAll(SEL), function (el) { var p = el.parentNode; if (parents.indexOf(p) < 0) parents.push(p); });
       function isLine(c) { return c.matches && c.matches(SEL); }
       function lines(p) { return Array.prototype.filter.call(p.children, isLine); }
@@ -362,14 +363,40 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
         try { if (any) localStorage.setItem(KEY, JSON.stringify(d)); else localStorage.removeItem(KEY); } catch (e) {}
         if (badge) { badge.classList.add('show'); clearTimeout(bt); bt = setTimeout(function () { badge.classList.remove('show'); }, 1200); }
       }
-      function groupOf(el) { if (!isLine(el)) return null; var p = el.parentNode; return parents.indexOf(p) < 0 ? null : p; }
-      A.addEventListener('input', function (e) {
-        var p = groupOf(e.target); if (!p) return;
-        var ls = lines(p);
-        if (ls[ls.length - 1] === e.target && e.target.value.trim()) add(p);
+      function groupOf(el) { if (!el || !isLine(el)) return null; var p = el.parentNode; return parents.indexOf(p) < 0 ? null : p; }
+      function fits(el) { return el.scrollWidth <= el.clientWidth + 1; }
+      /* 칸을 넘친 글을 단어 단위로 잘라 아래 줄 앞에 붙인다. 아래 줄도 넘치면 그 다음 줄로 이어진다 */
+      function wrap(el) {
+        var p = groupOf(el); if (!p || fits(el)) return;
+        var v = el.value, atEnd = document.activeElement === el && el.selectionStart === v.length;
+        var head = null, rest = '', k = v.lastIndexOf(' ');
+        while (k > 0) {
+          el.value = v.slice(0, k);
+          if (fits(el)) { head = v.slice(0, k).replace(/\s+$/, ''); rest = v.slice(k + 1).replace(/^\s+/, ''); break; }
+          k = v.lastIndexOf(' ', k - 1);
+        }
+        if (head === null) {
+          var n = v.length - 1;
+          while (n > 1) { el.value = v.slice(0, n); if (fits(el)) break; n--; }
+          head = v.slice(0, n); rest = v.slice(n);
+        }
+        el.value = head;
+        var ls = lines(p), next = ls[ls.indexOf(el) + 1] || add(p);
+        if (rest) next.value = rest + (next.value ? ' ' + next.value : '');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        next.dispatchEvent(new Event('input', { bubbles: true }));
+        if (atEnd) { next.focus(); try { next.setSelectionRange(rest.length, rest.length); } catch (e) {} }
+      }
+      function after(el) {
+        var p = groupOf(el); if (!p) return;
+        if (!composing) wrap(el);
         mark(p);
-        if (e.target.classList.contains('soda-xl') || extras(p).length) save();
-      });
+        if (extras(p).length) save();
+      }
+      A.addEventListener('input', function (e) { if (e.isComposing) { var p = groupOf(e.target); if (p) { mark(p); if (extras(p).length) save(); } return; } after(e.target); });
+      A.addEventListener('compositionstart', function () { composing = true; });
+      A.addEventListener('compositionend', function (e) { composing = false; var t = e.target; setTimeout(function () { if (!composing) after(t); }, 0); });
+      A.addEventListener('focusout', function (e) { composing = false; after(e.target); });
       A.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' || e.isComposing) return;
         var p = groupOf(e.target); if (!p) return;
@@ -393,10 +420,8 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
           var p = parents[+i]; if (!p || !Array.isArray(saved[i])) return;
           saved[i].forEach(function (v) { var n = add(p); n.value = String(v); });
           mark(p);
-          var ls = lines(p); if (ls[ls.length - 1].value.trim()) add(p);
         });
       } catch (e) {}
-      parents.forEach(function (p) { var ls = lines(p); if (ls.length && ls[ls.length - 1].value.trim()) add(p); });
     }
     if (document.readyState === 'complete') init(); else window.addEventListener('load', init);
   }
