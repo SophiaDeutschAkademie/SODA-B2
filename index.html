@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8"><script id="soda-sync" src="/SODA-LERNPORTAL/sync.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex,nofollow">
@@ -441,7 +441,11 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     var o = d.querySelector('.view.on');
     return o ? o.id.replace(/^v-/, '') : '';
   }
+  /* 학습 포탈 학습 저장(SODA-LERNPORTAL/sync.js): 챕터 본문 안에서 쓴 답안도 위 창의 학습 저장이 서버에 올립니다 */
+  var SYNC_INJECT = '<script src="/SODA-LERNPORTAL/sync.js"><\/script>';
   function injectFS(html) {
+    var hm = /<head(\s[^>]*)?>/i.exec(html);
+    if (hm && html.indexOf('/SODA-LERNPORTAL/sync.js') < 0) html = html.slice(0, hm.index + hm[0].length) + SYNC_INJECT + html.slice(hm.index + hm[0].length);
     var h = html.indexOf('</head>');
     if (h >= 0) html = html.slice(0, h) + '<style data-soda-tools>' + TOOLS_CSS + '</style>' + PRINT_INJECT + NAV_INJECT + html.slice(h);
     var i = html.lastIndexOf('</body>');
@@ -477,8 +481,17 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     return bar;
   }
 
+  var lastHtml = null;
+  window.SODA_SYNC_RELOAD = function () {
+    var f = $('reader').querySelector('iframe');
+    if (!f) return true; /* 열린 챕터가 없으면 다시 그릴 것도 없습니다 */
+    if (!lastHtml) return false;
+    f.srcdoc = injectFS(lastHtml);
+    return true;
+  };
   function openReader(html) {
     closeReader(true);
+    lastHtml = html;
     $('reader').removeAttribute('data-bar');
     var f = document.createElement('iframe');
     f.srcdoc = injectFS(html); f.title = '챕터 본문'; f.setAttribute('allow', 'autoplay');
@@ -491,6 +504,7 @@ function sodaScrypt(pw, salt, N, r, p, dkLen, subtle) {
     if (r.className !== 'on') return;
     r.className = ''; r.textContent = ''; r.removeAttribute('data-bar');
     if (frameURL) { URL.revokeObjectURL(frameURL); frameURL = null; }
+    lastHtml = null;
     document.body.style.overflow = '';
     if (!silent) show('list');
   }
